@@ -174,7 +174,7 @@ namespace Aerospike.Client
 		/// <summary>
 		/// Shutdown and close socket.
 		/// </summary>
-		public void Close()
+		public virtual void Close()
 		{
 			try
 			{

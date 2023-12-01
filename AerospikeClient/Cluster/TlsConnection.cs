@@ -212,5 +212,14 @@ namespace Aerospike.Client
 		{
 			return sslStream;
 		}
+
+		/// <summary>
+		/// Shutdown and close socket.
+		/// </summary>
+		//public override void Close()
+		//{
+		//	base.Close();
+		//	sslStream.Dispose();
+		//}
 	}
 }

@@ -157,6 +157,11 @@ namespace Aerospike.Client
 			this.infoPolicyDefault = policy.infoPolicyDefault;
 			this.operatePolicyReadDefault = new WritePolicy(this.readPolicyDefault);
 
+			Aerospike.Client.Log.SetCallback((l, msg)
+						=> System.Diagnostics.Debug.WriteLine($"ASDriver: {Task.CurrentId}: {l}: '{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")}': {msg}"));
+			Aerospike.Client.Log.SetLevel(Log.Level.DEBUG);
+
+
 			var connectionUri = hosts[0].tlsName == null ? new UriBuilder("http", hosts[0].name, hosts[0].port).Uri :
 				new UriBuilder("https", hosts[0].name, hosts[0].port).Uri;
 

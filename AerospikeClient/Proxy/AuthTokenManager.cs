@@ -382,10 +382,17 @@ namespace Aerospike.Client
                     }
                 }
 
-                //If token is close to being expired, the request is blocked until a new token obtained.
-                this.UpdatingToken.Wait(this.ClientPolicy.timeout, cancellationToken);
+				//If token is close to being expired, the request is blocked until a new token obtained.
+				//this.UpdatingToken.Wait(this.ClientPolicy.timeout, cancellationToken);
+				if (!this.UpdatingToken.Wait(this.ClientPolicy.timeout, cancellationToken))
+				{
+					if (Log.DebugEnabled())
+					{
+						Log.Debug($"GetTokenIfNeeded: Slim Token Wait Failed: Timeout: {this.ClientPolicy.timeout} IsCancled: {cancellationToken.IsCancellationRequested}");
+					}
+				}
 
-                return this.AccessToken;
+				return this.AccessToken;
             }
 
             return null;
