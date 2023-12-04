@@ -29,7 +29,7 @@ namespace Aerospike.Test
 			Bin bin = new Bin(args.GetBinName("touchbin"), "touchvalue");
 
 			WritePolicy writePolicy = new WritePolicy();
-			if (!args.testProxy)
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
 			{
 				writePolicy.expiration = 2;
 			}
@@ -39,7 +39,7 @@ namespace Aerospike.Test
 			}
 			client.Put(writePolicy, key, bin);
 
-			if (!args.testProxy)
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
 			{
 				writePolicy.expiration = 5;
 			}

@@ -171,13 +171,13 @@ namespace Aerospike.Client
         private async Task RefreshToken(CancellationToken cancellationToken, int timeout = -1, bool forceRefresh = false)
         {
             //Block requests until a new token is obtained when it is very close to expire...
-            if (this.AccessToken?.WillExpire ?? true && !forceRefresh)
+            if ((this.AccessToken?.WillExpire ?? true) && !forceRefresh)
             {
                 var isSet = this.UpdatingToken.IsSet;
                 this.UpdatingToken.Reset();
                 if(!isSet) //Try to prevent double entry...
                 {
-                    return;
+					return;
                 }
                 if (Log.DebugEnabled())
                 {
@@ -396,7 +396,7 @@ namespace Aerospike.Client
                 {
                     if (Log.DebugEnabled())
                     {
-                        Log.Debug($"GetTokenIfNeeded: Slim Token Wait Failed: IsCancled: {cancellationToken.IsCancellationRequested}");
+                        Log.Debug($"GetTokenIfNeeded: Slim Token Wait Failed: IsCanceled: {cancellationToken.IsCancellationRequested}");
                     }
                 }
 
