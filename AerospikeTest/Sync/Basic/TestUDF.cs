@@ -28,9 +28,12 @@ namespace Aerospike.Test
 		[ClassInitialize()]
 		public static void Register(TestContext testContext)
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.record_example.lua", "record_example.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.record_example.lua", "record_example.lua", Language.LUA);
+				task.Wait();
+			}
 		}
 
 		[TestMethod]
@@ -324,9 +327,12 @@ namespace Aerospike.Test
 		[TestMethod]
 		public void IntegerBin()
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
+				task.Wait();
+			}
 
 			Key key = new Key(args.ns, args.set, "int_bin_name");
 			client.Execute(null, key, "test_ops", "wait_and_create", new Value.MapValue(new Dictionary<int, int>() {  

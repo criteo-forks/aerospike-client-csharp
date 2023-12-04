@@ -32,7 +32,7 @@ namespace Aerospike.Test
 		public static void Prepare(TestContext testContext)
 		{
 			WritePolicy policy = new WritePolicy();
-			if (args.testProxy)
+			if (!args.testProxy)
 			{
 				policy.totalTimeout = args.proxyTotalTimeout;
 			}
@@ -40,7 +40,10 @@ namespace Aerospike.Test
 			// Write records in set p1.
 			for (int i = 1; i <= 5; i++)
 			{
-				policy.expiration = i * 60;
+				if (!args.testProxy)
+				{
+					policy.expiration = i * 60;
+				}
 
 				Key key = new Key(args.ns, set1, i);
 				client.Put(policy, key, new Bin(binA, i));

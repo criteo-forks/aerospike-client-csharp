@@ -73,15 +73,19 @@ namespace Aerospike.Test
 		[TestMethod]
 		public void ScanSeries()
 		{
-			Node[] nodes = nativeClient.Nodes;
-
-			foreach (Node node in nodes)
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
 			{
-				nativeClient.ScanNode(null, node, args.ns, args.set, ScanCallback);
+				Node[] nodes = nativeClient.Nodes;
 
-				foreach (KeyValuePair<string, Metrics> entry in setMap)
+				foreach (Node node in nodes)
 				{
-					entry.Value.count = 0;
+
+					nativeClient.ScanNode(null, node, args.ns, args.set, ScanCallback);
+
+					foreach (KeyValuePair<string, Metrics> entry in setMap)
+					{
+						entry.Value.count = 0;
+					}
 				}
 			}
 		}

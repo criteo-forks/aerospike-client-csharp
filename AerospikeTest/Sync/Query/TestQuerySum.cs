@@ -31,17 +31,23 @@ namespace Aerospike.Test
 		[ClassInitialize()]
 		public static void Prepare(TestContext testContext)
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.sum_example.lua", "sum_example.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.sum_example.lua", "sum_example.lua", Language.LUA);
+				task.Wait();
+			}
 
 			Policy policy = new Policy();
 			policy.totalTimeout = 0; // Do not timeout on index create.
 
 			try
 			{
-				IndexTask itask = nativeClient.CreateIndex(policy, args.ns, args.set, indexName, binName, IndexType.NUMERIC);
-				itask.Wait();
+				if (!args.testProxy || (args.testProxy && nativeClient != null))
+				{
+					IndexTask itask = nativeClient.CreateIndex(policy, args.ns, args.set, indexName, binName, IndexType.NUMERIC);
+					itask.Wait();
+				}
 			}
 			catch (AerospikeException ae)
 			{
@@ -62,82 +68,91 @@ namespace Aerospike.Test
 		[ClassCleanup()]
 		public static void Destroy()
 		{
-			nativeClient.DropIndex(null, args.ns, args.set, indexName);
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				nativeClient.DropIndex(null, args.ns, args.set, indexName);
+			}
 		}
 
 		[TestMethod]
 		public void QuerySum()
 		{
-			int begin = 4;
-			int end = 7;
-
-			Statement stmt = new Statement();
-			stmt.SetNamespace(args.ns);
-			stmt.SetSetName(args.set);
-			stmt.SetBinNames(binName);
-			stmt.SetFilter(Filter.Range(binName, begin, end));
-			stmt.SetAggregateFunction(Assembly.GetExecutingAssembly(), "Aerospike.Test.LuaResources.sum_example.lua", "sum_example", "sum_single_bin", Value.Get(binName));
-
-			ResultSet rs = nativeClient.QueryAggregate(null, stmt);
-
-			try
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
 			{
-				int expected = 22; // 4 + 5 + 6 + 7
-				int count = 0;
+				int begin = 4;
+				int end = 7;
 
-				while (rs.Next())
+				Statement stmt = new Statement();
+				stmt.SetNamespace(args.ns);
+				stmt.SetSetName(args.set);
+				stmt.SetBinNames(binName);
+				stmt.SetFilter(Filter.Range(binName, begin, end));
+				stmt.SetAggregateFunction(Assembly.GetExecutingAssembly(), "Aerospike.Test.LuaResources.sum_example.lua", "sum_example", "sum_single_bin", Value.Get(binName));
+
+				ResultSet rs = nativeClient.QueryAggregate(null, stmt);
+
+				try
 				{
-					object obj = rs.Object;
-					long sum = 0;
+					int expected = 22; // 4 + 5 + 6 + 7
+					int count = 0;
 
-					if (obj is long)
+					while (rs.Next())
 					{
-						sum = (long)rs.Object;
+						object obj = rs.Object;
+						long sum = 0;
+
+						if (obj is long)
+						{
+							sum = (long)rs.Object;
+						}
+						else
+						{
+							Assert.Fail("Return value not a long: " + obj);
+						}
+						Assert.AreEqual(expected, (int)sum);
+						count++;
 					}
-					else
-					{
-						Assert.Fail("Return value not a long: " + obj);
-					}
-					Assert.AreEqual(expected, (int)sum);
-					count++;
+					Assert.AreNotEqual(0, count);
 				}
-				Assert.AreNotEqual(0, count);
-			}
-			finally
-			{
-				rs.Close();
+				finally
+				{
+					rs.Close();
+				}
 			}
 		}
 
 		[TestMethod]
 		public void QuerySetNotFound()
 		{
-			Statement stmt = new Statement()
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
 			{
-				Namespace = args.ns,
-				SetName = "notfound",
-				BinNames = new string[] { binName },
-				Filter = Filter.Range(binName, 4, 7)
-			};
-			stmt.SetAggregateFunction(Assembly.GetExecutingAssembly(), "Aerospike.Test.LuaResources.sum_example.lua", "sum_example", "sum_single_bin", Value.Get(binName));
-
-			QueryPolicy qp = new QueryPolicy()
-			{
-				socketTimeout = 5000
-			};
-
-			ResultSet rs = nativeClient.QueryAggregate(qp, stmt);
-
-			try
-			{
-				while (rs.Next())
+				Statement stmt = new Statement()
 				{
-					Assert.Fail("No rows should have been returned");
+					Namespace = args.ns,
+					SetName = "notfound",
+					BinNames = new string[] { binName },
+					Filter = Filter.Range(binName, 4, 7)
+				};
+				stmt.SetAggregateFunction(Assembly.GetExecutingAssembly(), "Aerospike.Test.LuaResources.sum_example.lua", "sum_example", "sum_single_bin", Value.Get(binName));
+
+				QueryPolicy qp = new QueryPolicy()
+				{
+					socketTimeout = 5000
+				};
+
+				ResultSet rs = nativeClient.QueryAggregate(qp, stmt);
+
+				try
+				{
+					while (rs.Next())
+					{
+						Assert.Fail("No rows should have been returned");
+					}
 				}
-			}
-			finally
-			{
-				rs.Close();
+				finally
+				{
+					rs.Close();
+				}
 			}
 		}
 	}

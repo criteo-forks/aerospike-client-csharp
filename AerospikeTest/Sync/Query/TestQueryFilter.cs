@@ -31,17 +31,23 @@ namespace Aerospike.Test
 		[ClassInitialize()]
 		public static void Prepare(TestContext testContext)
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask rtask = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.filter_example.lua", "filter_example.lua", Language.LUA);
-			rtask.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask rtask = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.filter_example.lua", "filter_example.lua", Language.LUA);
+				rtask.Wait();
+			}
 
 			Policy policy = new Policy();
 			policy.totalTimeout = 0; // Do not timeout on index create.
 
 			try
 			{
-				IndexTask itask = nativeClient.CreateIndex(policy, args.ns, args.set, indexName, binName, IndexType.STRING);
-				itask.Wait();
+				if (!args.testProxy || (args.testProxy && nativeClient != null))
+				{
+					IndexTask itask = nativeClient.CreateIndex(policy, args.ns, args.set, indexName, binName, IndexType.STRING);
+					itask.Wait();
+				}
 			}
 			catch (AerospikeException ae)
 			{
@@ -67,40 +73,46 @@ namespace Aerospike.Test
 		[ClassCleanup()]
 		public static void Destroy()
 		{
-			nativeClient.DropIndex(null, args.ns, args.set, indexName);
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				nativeClient.DropIndex(null, args.ns, args.set, indexName);
+			}
 		}
 
 		[TestMethod]
 		public void QueryFilter()
 		{
-			string nameFilter = "Bill";
-			string passFilter = "hknfpkj";
-
-			Statement stmt = new Statement();
-			stmt.SetNamespace(args.ns);
-			stmt.SetSetName(args.set);
-			stmt.SetFilter(Filter.Equal(binName, nameFilter));
-			stmt.SetAggregateFunction(Assembly.GetExecutingAssembly(), "Aerospike.Test.LuaResources.filter_example.lua", "filter_example", "profile_filter", Value.Get(passFilter));
-
-			// passFilter will be applied in filter_example.lua.
-			ResultSet rs = nativeClient.QueryAggregate(null, stmt);
-
-			try
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
 			{
-				int count = 0;
+				string nameFilter = "Bill";
+				string passFilter = "hknfpkj";
 
-				while (rs.Next())
+				Statement stmt = new Statement();
+				stmt.SetNamespace(args.ns);
+				stmt.SetSetName(args.set);
+				stmt.SetFilter(Filter.Equal(binName, nameFilter));
+				stmt.SetAggregateFunction(Assembly.GetExecutingAssembly(), "Aerospike.Test.LuaResources.filter_example.lua", "filter_example", "profile_filter", Value.Get(passFilter));
+
+				// passFilter will be applied in filter_example.lua.
+				ResultSet rs = nativeClient.QueryAggregate(null, stmt);
+
+				try
 				{
-					IDictionary map = (IDictionary)rs.Object;
-					Assert.AreEqual(nameFilter, map["name"]);
-					Assert.AreEqual(passFilter, map["password"]);
-					count++;
+					int count = 0;
+
+					while (rs.Next())
+					{
+						IDictionary map = (IDictionary)rs.Object;
+						Assert.AreEqual(nameFilter, map["name"]);
+						Assert.AreEqual(passFilter, map["password"]);
+						count++;
+					}
+					Assert.AreNotEqual(0, count);
 				}
-				Assert.AreNotEqual(0, count);
-			}
-			finally
-			{
-				rs.Close();
+				finally
+				{
+					rs.Close();
+				}
 			}
 		}
 	}

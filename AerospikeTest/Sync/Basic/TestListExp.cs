@@ -159,7 +159,7 @@ namespace Aerospike.Test
 			List<Key> keys = new();
 			for (int i = 0; i < 5; i++)
 			{
-				Key key = new Key("test", "demo", i);
+				Key key = new Key(args.ns, args.set, i);
 				keys.Add(key);
 
 				// List element

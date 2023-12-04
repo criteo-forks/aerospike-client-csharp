@@ -43,7 +43,10 @@ namespace Aerospike.Test
 		public static void WriteRecords(TestContext testContext)
 		{
 			WritePolicy policy = new WritePolicy();
-			policy.expiration = 2592000;
+			if (!args.testProxy)
+			{
+				policy.expiration = 2592000;
+			}
 			if (args.testProxy)
 			{
 				policy.totalTimeout = args.proxyTotalTimeout;
@@ -514,9 +517,12 @@ namespace Aerospike.Test
 		[TestMethod]
 		public void InDoubtBatch()
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
+				task.Wait();
+			}
 
 			var recordList = new BatchRecord[100];
 
@@ -554,9 +560,12 @@ namespace Aerospike.Test
 		[TestMethod]
 		public void BigWriteBlock()
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
+				task.Wait();
+			}
 
 			var recordList = new BatchRecord[3];
 			var writeBlockSize = 1048576;
@@ -689,9 +698,12 @@ namespace Aerospike.Test
 		[TestMethod]
 		public void BatchTotalTimeout()
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
+				task.Wait();
+			}
 
 			Key key = new Key(args.ns, args.set, "to");
 			client.Delete(null, key);
@@ -721,9 +733,12 @@ namespace Aerospike.Test
 		[TestMethod]
 		public void BatchTotalTimeout2()
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
-			task.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask task = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.test_ops.lua", "test_ops.lua", Language.LUA);
+				task.Wait();
+			}
 
 			List<BatchRecord> batchRecords = new();
 			for (int i = 0; i < 1; i++)

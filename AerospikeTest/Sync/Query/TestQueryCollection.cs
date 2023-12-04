@@ -34,17 +34,23 @@ namespace Aerospike.Test
 		[ClassInitialize()]
 		public static void Prepare(TestContext testContext)
 		{
-			Assembly assembly = Assembly.GetExecutingAssembly();
-			RegisterTask rtask = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.record_example.lua", "record_example.lua", Language.LUA);
-			rtask.Wait();
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				Assembly assembly = Assembly.GetExecutingAssembly();
+				RegisterTask rtask = nativeClient.Register(null, assembly, "Aerospike.Test.LuaResources.record_example.lua", "record_example.lua", Language.LUA);
+				rtask.Wait();
+			}
 
 			Policy policy = new Policy();
 			policy.totalTimeout = 0; // Do not timeout on index create.
 
 			try
 			{
-				IndexTask task = nativeClient.CreateIndex(policy, args.ns, args.set, indexName, binName, IndexType.STRING, IndexCollectionType.MAPKEYS);
-				task.Wait();
+				if (!args.testProxy || (args.testProxy && nativeClient != null))
+				{
+					IndexTask task = nativeClient.CreateIndex(policy, args.ns, args.set, indexName, binName, IndexType.STRING, IndexCollectionType.MAPKEYS);
+					task.Wait();
+				}
 			}
 			catch (AerospikeException ae)
 			{
@@ -77,7 +83,10 @@ namespace Aerospike.Test
 		[ClassCleanup()]
 		public static void Destroy()
 		{
-			nativeClient.DropIndex(null, args.ns, args.set, indexName);
+			if (!args.testProxy || (args.testProxy && nativeClient != null))
+			{
+				nativeClient.DropIndex(null, args.ns, args.set, indexName);
+			}
 		}
 
 		[TestMethod]

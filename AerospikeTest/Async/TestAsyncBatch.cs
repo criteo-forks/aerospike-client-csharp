@@ -53,7 +53,10 @@ namespace Aerospike.Test
 			WriteHandler handler = new WriteHandler(monitor, Size + 3);
 
 			WritePolicy policy = new WritePolicy();
-			policy.expiration = 2592000;
+			if (!args.testProxy)
+			{
+				policy.expiration = 2592000;
+			}
 			if (args.testProxy)
 			{
 				policy.totalTimeout = args.proxyTotalTimeout;

@@ -129,7 +129,7 @@ namespace Aerospike.Client
 			catch (EndOfGRPCStream eos)
 			{
 				RecordSet.Put(RecordSet.END);
-				if (eos.ResultCode != 0 && eos.ResultCode != 22) // TODO
+				if (eos.ResultCode != 0)
 				{
 					if (Log.DebugEnabled())
 					{
@@ -142,7 +142,7 @@ namespace Aerospike.Client
 
 				if (Log.DebugEnabled())
 				{
-					Log.Debug($"Execute Query Completed: '{this.OpCount}'");
+					Log.Debug($"Execute Query: Result Code: {eos.ResultCode}: Completed: '{this.OpCount}'");
 				}
 			}
 			catch (RpcException e)
