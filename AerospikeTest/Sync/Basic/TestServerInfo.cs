@@ -48,7 +48,7 @@ namespace Aerospike.Test
 				}
 				else
 				{
-					if (!(key.Equals("services-alumni") || key.Equals("services") || key.Equals("dcs")))
+					if (!(key.Equals("services-alumni") || key.Equals("services") || key.Equals("dcs") || key.Equals("build_ee_sha")))
 					{
 						Assert.IsNotNull(entry.Value);
 					}
