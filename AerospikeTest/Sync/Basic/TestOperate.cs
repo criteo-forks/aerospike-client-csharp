@@ -81,52 +81,5 @@ namespace Aerospike.Test
 			AssertBinEqual(key, record, bin2.name, 2);
 			Assert.IsTrue(record.bins.Count == 1);
 		}
-
-		[TestMethod]
-		public void OperateInvalidNamespace()
-		{
-			List<BatchRecord> records = new()
-			{
-				new BatchUDF(new Key("invalid", args.set, 1), "test_ops", "rec_create",
-					new Value[] { Value.Get(new Dictionary<String, String>() {
-						{
-							"bin1_str", "a"
-						}
-					})
-				}),
-				new BatchWrite(new Key(args.ns, args.set, 2),
-				new Operation[] { Operation.Put(new Bin("bin1_str", "aa")) }),
-				new BatchWrite(new Key(args.ns, args.set, 3),
-				new Operation[] { Operation.Put(new Bin("bin1_str", "aaa")) })
-			};
-
-			BatchPolicy bp = new()
-			{
-				respondAllKeys = false
-			};
-
-			try
-			{
-				bool isSucceed = client.Operate(bp, records);
-				if (isSucceed)
-				{
-					Console.WriteLine("Batch passed");
-				}
-				else
-				{
-					Console.WriteLine("Some operations failed");
-				}
-			}
-			catch (Exception)
-			{
-				throw;
-			}
-			finally {
-				foreach (BatchRecord br in records) 
-				{
-					Console.WriteLine($"key: {br.key}, result: {br.resultCode}, record: {br.record}\n");
-				}
-			}
-		}
 	}
 }

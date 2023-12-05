@@ -52,7 +52,7 @@ namespace Aerospike.Client
 
 			BatchRead record = (BatchRead)Records[BatchIndex];
 
-			if (ResultCode == 0)
+			if (ResultCode == Client.ResultCode.OK)
 			{
 				record.SetRecord(ParseRecord());
 			}
@@ -104,9 +104,13 @@ namespace Aerospike.Client
 		{
 			SkipKey(FieldCount);
 
-			if (ResultCode == 0)
+			if (ResultCode == Client.ResultCode.OK)
 			{
 				Records[BatchIndex].record = ParseRecord();
+			}
+			else if (ResultCode == Client.ResultCode.INVALID_NAMESPACE)
+			{
+				throw new AerospikeException.InvalidNamespace(Records[BatchIndex].key.ns, 1);
 			}
 			return true;
 		}
@@ -148,7 +152,14 @@ namespace Aerospike.Client
 				throw new AerospikeException.Parse("Received bins that were not requested!");
 			}
 
-			ExistsArray[BatchIndex] = ResultCode == 0;
+			if (ResultCode == Client.ResultCode.OK)
+			{
+				ExistsArray[BatchIndex] = true;
+			}
+			else if (ResultCode == Client.ResultCode.INVALID_NAMESPACE)
+			{
+				throw new AerospikeException.InvalidNamespace(Records[BatchIndex].key.ns, 1);
+			}
 			return true;
 		}
 	}
@@ -189,13 +200,12 @@ namespace Aerospike.Client
 
 			BatchRecord record = Records[BatchIndex];
 
-			if (ResultCode == 0)
+			if (ResultCode == Client.ResultCode.OK)
 			{
 				record.SetRecord(ParseRecord());
 				return true;
 			}
-
-			if (ResultCode == Client.ResultCode.UDF_BAD_RESPONSE)
+			else if (ResultCode == Client.ResultCode.UDF_BAD_RESPONSE)
 			{
                 Record r = ParseRecord();
 				string m = r.GetString("FAILURE");
@@ -276,7 +286,7 @@ namespace Aerospike.Client
 
 			BatchRecord record = Records[BatchIndex];
 
-			if (ResultCode == 0)
+			if (ResultCode == Client.ResultCode.OK)
 			{
 				record.SetRecord(ParseRecord());
 			}
@@ -357,7 +367,7 @@ namespace Aerospike.Client
 
 			BatchRecord record = Records[BatchIndex];
 
-			if (ResultCode == 0)
+			if (ResultCode == Client.ResultCode.OK)
 			{
 				record.SetRecord(ParseRecord());
 				return true;

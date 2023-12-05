@@ -573,7 +573,7 @@ namespace Aerospike.Client
 			/// </summary>
 			public EndOfGRPCStream() : base(Client.ResultCode.OK, "GRPC Stream was ended successfully")
 			{
-				ResultCode = 0;
+				ResultCode = Client.ResultCode.OK;
 			}
 
 			/// <summary>

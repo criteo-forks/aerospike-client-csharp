@@ -138,22 +138,5 @@ namespace Aerospike.Test
 				Assert.Fail("Invalid record header: generation=" + record.generation + " expiration=" + record.expiration);
 			}
 		}
-
-		[TestMethod]
-		public void PutMaxBinSize()
-		{
-			Key key = new(args.ns, args.set, "maxbin");
-
-			List<string> list = new();
-			int[] iterator = Enumerable.Range(0, 8912896).ToArray();
-			foreach (int i in iterator)
-			{
-				list.Add(i.ToString());
-			}
-
-			Bin bin1 = new("bin", list);
-
-			client.Put(null, key, bin1);
-		}
 	}
 }

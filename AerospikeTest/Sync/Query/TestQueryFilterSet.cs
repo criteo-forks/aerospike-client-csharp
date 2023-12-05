@@ -40,7 +40,7 @@ namespace Aerospike.Test
 			// Write records in set p1.
 			for (int i = 1; i <= 5; i++)
 			{
-				if (!args.testProxy)
+				if (!args.testProxy || (args.testProxy && nativeClient != null))
 				{
 					policy.expiration = i * 60;
 				}
