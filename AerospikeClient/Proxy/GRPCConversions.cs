@@ -35,9 +35,9 @@ namespace Aerospike.Client
 			{
 				KVS.WritePolicy writePolicy = new()
 				{
-					ReadModeAP = Enum.TryParse(policy.readModeAP.ToString(), true, out KVS.ReadModeAP apConversion) ? apConversion : KVS.ReadModeAP.One,
-					ReadModeSC = Enum.TryParse(policy.readModeSC.ToString(), true, out KVS.ReadModeSC scConversion) ? scConversion : KVS.ReadModeSC.Session,
-					Replica = Enum.TryParse(policy.replica.ToString(), true, out KVS.Replica replicaConversion) ? replicaConversion : KVS.Replica.Sequence
+					ReadModeAP = ToGrpc(policy.readModeAP),
+					ReadModeSC = ToGrpc(policy.readModeSC),
+					Replica = ToGrpc(policy.replica)
 				};
 
 				request.WritePolicy = writePolicy;
@@ -46,9 +46,9 @@ namespace Aerospike.Client
 			{
 				KVS.ReadPolicy readPolicy = new()
 				{
-					ReadModeAP = Enum.TryParse(policy.readModeAP.ToString(), true, out KVS.ReadModeAP apConversion) ? apConversion : KVS.ReadModeAP.One,
-					ReadModeSC = Enum.TryParse(policy.readModeSC.ToString(), true, out KVS.ReadModeSC scConversion) ? scConversion : KVS.ReadModeSC.Session,
-					Replica = Enum.TryParse(policy.replica.ToString(), true, out KVS.Replica replicaConversion) ? replicaConversion : KVS.Replica.Sequence
+					ReadModeAP = ToGrpc(policy.readModeAP),
+					ReadModeSC = ToGrpc(policy.readModeSC),
+					Replica = ToGrpc(policy.replica)
 				};
 
 				request.ReadPolicy = readPolicy;
@@ -60,9 +60,9 @@ namespace Aerospike.Client
 			KVS.ScanPolicy scanPolicyKVS = new()
 			{
 				// Base policy fields.
-				ReadModeAP = Enum.TryParse(scanPolicy.readModeAP.ToString(), true, out KVS.ReadModeAP apConversion) ? apConversion : KVS.ReadModeAP.One,
-				ReadModeSC = Enum.TryParse(scanPolicy.readModeSC.ToString(), true, out KVS.ReadModeSC scConversion) ? scConversion : KVS.ReadModeSC.Session,
-				Replica = Enum.TryParse(scanPolicy.replica.ToString(), true, out KVS.Replica replicaConversion) ? replicaConversion : KVS.Replica.Sequence,
+				ReadModeAP = ToGrpc(scanPolicy.readModeAP),
+				ReadModeSC = ToGrpc(scanPolicy.readModeSC),
+				Replica = ToGrpc(scanPolicy.replica),
 				TotalTimeout = (uint)scanPolicy.totalTimeout,
 				Compress = scanPolicy.compress,
 				// Scan policy specific fields
@@ -82,9 +82,9 @@ namespace Aerospike.Client
 			var queryPolicyKVS = new KVS.QueryPolicy()
 			{
 				// Base policy fields.
-				ReadModeAP = Enum.TryParse(queryPolicy.readModeAP.ToString(), true, out KVS.ReadModeAP apConversion) ? apConversion : KVS.ReadModeAP.One,
-				ReadModeSC = Enum.TryParse(queryPolicy.readModeSC.ToString(), true, out KVS.ReadModeSC scConversion) ? scConversion : KVS.ReadModeSC.Session,
-				Replica = Enum.TryParse(queryPolicy.replica.ToString(), true, out KVS.Replica replicaConversion) ? replicaConversion : KVS.Replica.Sequence,
+				ReadModeAP = ToGrpc(queryPolicy.readModeAP),
+				ReadModeSC = ToGrpc(queryPolicy.readModeSC),
+				Replica = ToGrpc(queryPolicy.replica),
 				TotalTimeout = (uint)queryPolicy.totalTimeout,
 				Compress = queryPolicy.compress,
 				SendKey = queryPolicy.sendKey,
@@ -124,7 +124,7 @@ namespace Aerospike.Client
 				ValType = filter.ValType,
 				Begin = filter.Begin == null ? null : ByteString.CopyFrom(packer.ToByteArray()),
 				End = filter.End == null ? null : ValueToByteString(filter.End),
-				ColType = Enum.TryParse(filter.ColType.ToString(), true, out KVS.IndexCollectionType colTypeConversion) ? colTypeConversion : KVS.IndexCollectionType.Default
+				ColType = ToGrpc(filter.ColType)
 			};
 
 			if (filter.PackedCtx != null) filterKVS.PackedCtx = ByteString.CopyFrom(filter.PackedCtx);
@@ -136,7 +136,7 @@ namespace Aerospike.Client
 		{
 			var operationKVS = new KVS.Operation()
 			{
-				Type = Enum.TryParse(operation.type.ToString(), true, out KVS.OperationType typeConversion) ? typeConversion : KVS.OperationType.Read,
+				Type = ToGrpc(operation.type),
 				Value = ValueToByteString(operation.value)
 			};
 			if (operation.binName != null) { operationKVS.BinName = operation.binName; }
@@ -235,17 +235,17 @@ namespace Aerospike.Client
 			return new()
 			{
 				// Base policy fields.
-				ReadModeAP = Enum.TryParse(writePolicy.readModeAP.ToString(), true, out KVS.ReadModeAP apConversion) ? apConversion : KVS.ReadModeAP.One,
-				ReadModeSC = Enum.TryParse(writePolicy.readModeSC.ToString(), true, out KVS.ReadModeSC scConversion) ? scConversion : KVS.ReadModeSC.Session,
-				Replica = Enum.TryParse(writePolicy.replica.ToString(), true, out KVS.Replica replicaConversion) ? replicaConversion : KVS.Replica.Sequence,
+				ReadModeAP = ToGrpc(writePolicy.readModeAP),
+				ReadModeSC = ToGrpc(writePolicy.readModeSC),
+				Replica = ToGrpc(writePolicy.replica),
 				Expression = writePolicy.filterExp == null ? ByteString.Empty : ByteString.CopyFrom(writePolicy.filterExp.Bytes),
 				TotalTimeout = (uint)writePolicy.totalTimeout,
 				Compress = writePolicy.compress,
 				SendKey = writePolicy.sendKey,
 				// Query policy specific fields
-				RecordExistsAction = Enum.TryParse(writePolicy.recordExistsAction.ToString(), true, out KVS.RecordExistsAction reConversion) ? reConversion : KVS.RecordExistsAction.Update,
-				GenerationPolicy = Enum.TryParse(writePolicy.generationPolicy.ToString(), true, out KVS.GenerationPolicy gpConversion) ? gpConversion : KVS.GenerationPolicy.None,
-				CommitLevel = Enum.TryParse(writePolicy.commitLevel.ToString(), true, out KVS.CommitLevel clConversion) ? clConversion : KVS.CommitLevel.CommitAll,
+				RecordExistsAction = ToGrpc(writePolicy.recordExistsAction),
+				GenerationPolicy = ToGrpc(writePolicy.generationPolicy),
+				CommitLevel = ToGrpc(writePolicy.commitLevel),
 				Generation = (uint)writePolicy.generation,
 				Expiration = (uint)writePolicy.expiration,
 				RespondAllOps = writePolicy.respondAllOps,
@@ -259,9 +259,116 @@ namespace Aerospike.Client
 			return new()
 			{
 				// Base policy fields.
-				ReadModeAP = Enum.TryParse(writePolicy.readModeAP.ToString(), true, out KVS.ReadModeAP apConversion) ? apConversion : KVS.ReadModeAP.One,
-				ReadModeSC = Enum.TryParse(writePolicy.readModeSC.ToString(), true, out KVS.ReadModeSC scConversion) ? scConversion : KVS.ReadModeSC.Session,
-				Replica = Enum.TryParse(writePolicy.replica.ToString(), true, out KVS.Replica replicaConversion) ? replicaConversion : KVS.Replica.Sequence,
+				ReadModeAP = ToGrpc(writePolicy.readModeAP),
+				ReadModeSC = ToGrpc(writePolicy.readModeSC),
+				Replica = ToGrpc(writePolicy.replica),
+			};
+		}
+
+		private static KVS.ReadModeAP ToGrpc(ReadModeAP readModeAP)
+		{
+			return readModeAP switch
+			{
+				ReadModeAP.ONE => KVS.ReadModeAP.One,
+				ReadModeAP.ALL => KVS.ReadModeAP.All,
+				_ => KVS.ReadModeAP.One,
+			};
+		}
+
+		private static KVS.ReadModeSC ToGrpc(ReadModeSC readModeSC)
+		{
+			return readModeSC switch
+			{
+				ReadModeSC.SESSION => KVS.ReadModeSC.Session,
+				ReadModeSC.LINEARIZE => KVS.ReadModeSC.Linearize,
+				ReadModeSC.ALLOW_REPLICA => KVS.ReadModeSC.AllowReplica,
+				ReadModeSC.ALLOW_UNAVAILABLE => KVS.ReadModeSC.AllowUnavailable,
+				_ => KVS.ReadModeSC.Session
+			};
+		}
+
+		private static KVS.Replica ToGrpc(Replica replica)
+		{
+			return replica switch
+			{
+				Replica.MASTER => KVS.Replica.Master,
+				Replica.MASTER_PROLES => KVS.Replica.MasterProles,
+				Replica.SEQUENCE => KVS.Replica.Sequence,
+				Replica.PREFER_RACK => KVS.Replica.PreferRack,
+				Replica.RANDOM => KVS.Replica.Random,
+				_ => KVS.Replica.Master
+			};
+		}
+
+		private static KVS.IndexCollectionType ToGrpc(IndexCollectionType indexCollectionType)
+		{
+			return indexCollectionType switch
+			{
+				IndexCollectionType.DEFAULT => KVS.IndexCollectionType.Default,
+				IndexCollectionType.LIST => KVS.IndexCollectionType.List,
+				IndexCollectionType.MAPKEYS => KVS.IndexCollectionType.Mapkeys,
+				IndexCollectionType.MAPVALUES => KVS.IndexCollectionType.Mapvalues,
+				_ => KVS.IndexCollectionType.Default
+			};
+		}
+
+		private static KVS.OperationType ToGrpc(Operation.Type operationType)
+		{
+			return operationType switch
+			{
+				Operation.Type.READ => KVS.OperationType.Read,
+				Operation.Type.READ_HEADER => KVS.OperationType.ReadHeader,
+				Operation.Type.WRITE => KVS.OperationType.Write,
+				Operation.Type.CDT_READ => KVS.OperationType.CdtRead,
+				Operation.Type.CDT_MODIFY => KVS.OperationType.CdtModify,
+				Operation.Type.MAP_READ => KVS.OperationType.MapRead,
+				Operation.Type.MAP_MODIFY => KVS.OperationType.MapModify,
+				Operation.Type.ADD => KVS.OperationType.Add,
+				Operation.Type.EXP_READ => KVS.OperationType.ExpRead,
+				Operation.Type.EXP_MODIFY => KVS.OperationType.ExpModify,
+				Operation.Type.APPEND => KVS.OperationType.Append,
+				Operation.Type.PREPEND => KVS.OperationType.Prepend,
+				Operation.Type.TOUCH => KVS.OperationType.Touch,
+				Operation.Type.BIT_READ => KVS.OperationType.BitRead,
+				Operation.Type.BIT_MODIFY => KVS.OperationType.BitModify,
+				Operation.Type.DELETE => KVS.OperationType.Delete,
+				Operation.Type.HLL_READ => KVS.OperationType.HllRead,
+				Operation.Type.HLL_MODIFY => KVS.OperationType.HllModify,
+				_ => KVS.OperationType.Add
+			};
+		}
+
+		private static KVS.RecordExistsAction ToGrpc(RecordExistsAction recordExistsAction)
+		{
+			return recordExistsAction switch
+			{
+				RecordExistsAction.UPDATE => KVS.RecordExistsAction.Update,
+				RecordExistsAction.UPDATE_ONLY => KVS.RecordExistsAction.UpdateOnly,
+				RecordExistsAction.REPLACE => KVS.RecordExistsAction.Replace,
+				RecordExistsAction.REPLACE_ONLY => KVS.RecordExistsAction.ReplaceOnly,
+				RecordExistsAction.CREATE_ONLY => KVS.RecordExistsAction.CreateOnly,
+				_ => KVS.RecordExistsAction.Update
+			};
+		}
+
+		private static KVS.GenerationPolicy ToGrpc(GenerationPolicy generationPolicy)
+		{
+			return generationPolicy switch
+			{
+				GenerationPolicy.NONE => KVS.GenerationPolicy.None,
+				GenerationPolicy.EXPECT_GEN_EQUAL => KVS.GenerationPolicy.ExpectGenEqual,
+				GenerationPolicy.EXPECT_GEN_GT => KVS.GenerationPolicy.ExpectGenGt,
+				_ => KVS.GenerationPolicy.None
+			};
+		}
+
+		private static KVS.CommitLevel ToGrpc(CommitLevel commitLevel)
+		{
+			return commitLevel switch
+			{
+				CommitLevel.COMMIT_ALL => KVS.CommitLevel.CommitAll,
+				CommitLevel.COMMIT_MASTER => KVS.CommitLevel.CommitMaster,
+				_ => KVS.CommitLevel.CommitAll
 			};
 		}
 
