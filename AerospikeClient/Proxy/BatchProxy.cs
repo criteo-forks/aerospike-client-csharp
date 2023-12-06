@@ -477,8 +477,18 @@ namespace Aerospike.Client
 				// continue
 				if (eos.ResultCode != 0)
 				{
+					if (Log.DebugEnabled())
+					{
+						Log.Debug($"BatchCommandProxy EndOfGRPCStream Exception: {eos.ResultCode}: Exception: {eos.GetType()} Message: '{eos.Message}': '{eos}'");
+					}
+
 					// The server returned a fatal error.
 					throw new AerospikeException(ResultCode);
+				}
+
+				if (Log.DebugEnabled())
+				{
+					Log.Debug($"Execute Batch: Result Code: {eos.ResultCode}: Completed: '{this.OpCount}'");
 				}
 			}
 			catch (RpcException e)

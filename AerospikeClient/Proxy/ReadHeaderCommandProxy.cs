@@ -56,6 +56,11 @@ namespace Aerospike.Client
 				return;
 			}
 
+			if (Log.DebugEnabled())
+			{
+				Log.Debug($"ReadHeaderCommandProxy ParseResult resultCode not OK: {resultCode}");
+			}
+
 			if (resultCode == Client.ResultCode.KEY_NOT_FOUND_ERROR)
 			{
 				return;

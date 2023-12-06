@@ -54,6 +54,11 @@ namespace Aerospike.Client
 				return;
 			}
 
+			if (Log.DebugEnabled())
+			{
+				Log.Debug($"ExistsCommandProxy ParseResult resultCode not OK: {resultCode}");
+			}
+
 			if (resultCode == Client.ResultCode.KEY_NOT_FOUND_ERROR)
 			{
                 Exists = false;

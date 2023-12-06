@@ -141,8 +141,18 @@ namespace Aerospike.Client
 				RecordSet.Put(RecordSet.END);
 				if (eos.ResultCode != 0)
 				{
+					if (Log.DebugEnabled())
+					{
+						Log.Debug($"ScanParitionCommandProxy EndOfGRPCStream Exception: {eos.ResultCode}: Exception: {eos.GetType()} Message: '{eos.Message}': '{eos}'");
+					}
+
 					// The server returned a fatal error.
 					throw new AerospikeException(eos.ResultCode);
+				}
+
+				if (Log.DebugEnabled())
+				{
+					Log.Debug($"Execute Scan: Result Code: {eos.ResultCode}: Completed: '{this.OpCount}'");
 				}
 			}
 			catch (RpcException e)

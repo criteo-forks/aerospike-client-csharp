@@ -122,7 +122,7 @@ namespace Aerospike.Client
 			{
 				Name = filter.Name,
 				ValType = filter.ValType,
-				Begin = filter.Begin == null ? null : ByteString.CopyFrom(packer.ToByteArray()), // TODO ask Brian about this
+				Begin = filter.Begin == null ? null : ByteString.CopyFrom(packer.ToByteArray()),
 				End = filter.End == null ? null : ValueToByteString(filter.End),
 				ColType = Enum.TryParse(filter.ColType.ToString(), true, out KVS.IndexCollectionType colTypeConversion) ? colTypeConversion : KVS.IndexCollectionType.Default
 			};

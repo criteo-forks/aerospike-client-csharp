@@ -59,6 +59,11 @@ namespace Aerospike.Client
 				return;
 			}
 
+			if (Log.DebugEnabled())
+			{
+				Log.Debug($"TouchCommandProxy ParseResult resultCode not OK: {resultCode}");
+			}
+
 			if (resultCode == Client.ResultCode.FILTERED_OUT)
 			{
 				if (WritePolicy.failOnFilteredOut)

@@ -120,7 +120,9 @@ namespace Aerospike.Client
 				var deadline = GetDeadline();
 
 				if (Log.DebugEnabled())
+				{
 					Log.Debug($"Execute Query: '{request.QueryRequest.Statement}': '{deadline}': {token.IsCancellationRequested}");
+				}
 
 				var stream = client.Query(request, deadline: deadline, cancellationToken: token);
 				var conn = new ConnectionProxyStream(stream);
@@ -133,7 +135,7 @@ namespace Aerospike.Client
 				{
 					if (Log.DebugEnabled())
 					{
-						Log.Debug($"EndOfGRPCStream Exception: {eos.ResultCode}: Exception: {eos.GetType()} Message: '{eos.Message}': '{eos}'");
+						Log.Debug($"QueryParitionCoommandProxy EndOfGRPCStream Exception: {eos.ResultCode}: Exception: {eos.GetType()} Message: '{eos.Message}': '{eos}'");
 					}
 
 					// The server returned a fatal error.

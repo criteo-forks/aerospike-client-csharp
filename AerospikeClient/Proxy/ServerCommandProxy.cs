@@ -108,8 +108,18 @@ namespace Aerospike.Client
 			{
 				if (eos.ResultCode != 0)
 				{
+					if (Log.DebugEnabled())
+					{
+						Log.Debug($"ServerCommandProxy EndOfGRPCStream Exception: {eos.ResultCode}: Exception: {eos.GetType()} Message: '{eos.Message}': '{eos}'");
+					}
+
 					// The server returned a fatal error.
 					throw new AerospikeException(eos.ResultCode);
+				}
+
+				if (Log.DebugEnabled())
+				{
+					Log.Debug($"Execute Server Command: Result Code: {eos.ResultCode}: Completed: '{this.OpCount}'");
 				}
 			}
 			catch (RpcException e)
