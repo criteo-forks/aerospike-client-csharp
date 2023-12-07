@@ -442,6 +442,12 @@ namespace Aerospike.Client
         private const float refreshAfterFraction = 0.85f;
 
         /// <summary>
+        /// An estimate for how long in milliseconds it takes for token refresh to complete. If remaining expiry time
+        /// is at less than this amount, refresh should be scheduled immediately
+        /// </summary>
+        private const int minRefreshTime = 5000;
+
+        /// <summary>
         /// Local token expiry timestamp in mills.
         /// </summary>
         private readonly Stopwatch expiry;
@@ -481,16 +487,16 @@ namespace Aerospike.Client
                                         : tokenFetchLatency;
             var possibleRefreshTime = (ttl * refreshAfterFraction) - useFetchLatency;
 
-            if (possibleRefreshTime > 0 && possibleRefreshTime < ttl)
-            {
-                this.RefreshTime = (long) possibleRefreshTime;
-            }
-            else
-            {
-                this.RefreshTime = (long)Math.Floor(ttl * refreshZeroFraction);
-            }
-            
-            var willExpireSoon = this.RefreshTime + tokenFetchLatency;
+			if (possibleRefreshTime > minRefreshTime && possibleRefreshTime < ttl)
+			{
+				this.RefreshTime = (long)possibleRefreshTime;
+			}
+			else
+			{
+				this.RefreshTime = minRefreshTime;
+			}
+
+			var willExpireSoon = this.RefreshTime + tokenFetchLatency;
 
             this.TokenFetchLatency = tokenFetchLatency;
             this.WillExpireSoon = willExpireSoon >= ttl ? this.RefreshTime : willExpireSoon;

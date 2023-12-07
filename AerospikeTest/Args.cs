@@ -38,6 +38,7 @@ namespace Aerospike.Test
 		public bool testProxy;
 		public string user;
 		public string password;
+		public int timeout;
 		public string clusterName;
 		public string ns;
 		public string set;
@@ -64,6 +65,7 @@ namespace Aerospike.Test
 			clusterName = section.GetSection("ClusterName").Value;
 			user = section.GetSection("User").Value;
 			password = section.GetSection("Password").Value;
+			timeout = int.Parse(section.GetSection("Timeout").Value);
 			ns = section.GetSection("Namespace").Value;
 			set = section.GetSection("Set").Value;
 			authMode = (AuthMode)Enum.Parse(typeof(AuthMode), section.GetSection("AuthMode").Value, true);
@@ -126,6 +128,7 @@ namespace Aerospike.Test
 			policy.clusterName = clusterName;
 			policy.tlsPolicy = tlsPolicy;
 			policy.authMode = authMode;
+			policy.timeout = timeout;
 
 			if (user != null && user.Length > 0)
 			{
@@ -134,6 +137,14 @@ namespace Aerospike.Test
 			}
 
 			nativeClient = new AerospikeClient(policy, hosts);
+
+			nativeClient.readPolicyDefault.totalTimeout = timeout;
+			nativeClient.WritePolicyDefault.totalTimeout = timeout;
+			nativeClient.ScanPolicyDefault.totalTimeout = timeout;
+			nativeClient.QueryPolicyDefault.totalTimeout = timeout;
+			nativeClient.BatchPolicyDefault.totalTimeout = timeout;
+			nativeClient.BatchParentPolicyWriteDefault.totalTimeout = timeout;
+			nativeClient.InfoPolicyDefault.timeout = timeout;
 			client = nativeClient;
 
 			try
@@ -170,8 +181,8 @@ namespace Aerospike.Test
 			proxyAsyncPolicy.minConnsPerNode = 100;
 			proxyPolicy.maxConnsPerNode = 100;
 			proxyAsyncPolicy.maxConnsPerNode = 100;
-			proxyPolicy.timeout = 25000;
-			proxyAsyncPolicy.timeout = 25000;
+			proxyPolicy.timeout = timeout;
+			proxyAsyncPolicy.timeout = timeout;
 
 			if (user != null && user.Length > 0)
 			{
@@ -203,7 +214,7 @@ namespace Aerospike.Test
 			asyncProxy = new AsyncClientProxy(proxyAsyncPolicy, proxyHost);
 			asyncClient = asyncProxy;
 
-			proxyTotalTimeout = 25000;
+			proxyTotalTimeout = timeout;
 			proxySocketTimeout = 5000;
 
 			proxyClient.readPolicyDefault.totalTimeout = proxyTotalTimeout;
@@ -271,6 +282,7 @@ namespace Aerospike.Test
 			policy.tlsPolicy = tlsPolicy;
 			policy.authMode = authMode;
 			policy.asyncMaxCommands = 300;
+			policy.timeout = timeout;
 
 			if (user != null && user.Length > 0)
 			{
@@ -279,6 +291,15 @@ namespace Aerospike.Test
 			}
 
 			nativeAsync = new AsyncClient(policy, hosts);
+
+			nativeAsync.readPolicyDefault.totalTimeout = timeout;
+			nativeAsync.WritePolicyDefault.totalTimeout = timeout;
+			nativeAsync.ScanPolicyDefault.totalTimeout = timeout;
+			nativeAsync.QueryPolicyDefault.totalTimeout = timeout;
+			nativeAsync.BatchPolicyDefault.totalTimeout = timeout;
+			nativeAsync.BatchParentPolicyWriteDefault.totalTimeout = timeout;
+			nativeAsync.InfoPolicyDefault.timeout = timeout;
+
 			asyncClient = nativeAsync;
 		}
 
