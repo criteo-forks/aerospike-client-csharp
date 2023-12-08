@@ -48,7 +48,7 @@ namespace Aerospike.Client
 			}
             catch (Exception)
 			{
-				base.Close();
+				Close();
 				throw;
 			}
 		}
@@ -216,10 +216,10 @@ namespace Aerospike.Client
 		/// <summary>
 		/// Shutdown and close socket.
 		/// </summary>
-		//public override void Close()
-		//{
-		//	base.Close();
-		//	sslStream.Dispose();
-		//}
+		public override void Close()
+		{
+			base.Close();
+			sslStream.Dispose();
+		}
 	}
 }

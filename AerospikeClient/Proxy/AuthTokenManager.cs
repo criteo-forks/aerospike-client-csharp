@@ -15,26 +15,21 @@
  * the License.
  */
 using Grpc.Core;
-using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
-using Microsoft.AspNetCore.Razor.Runtime.TagHelpers;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-using static Aerospike.Client.Log;
 using Timer = System.Timers.Timer;
 
 namespace Aerospike.Client
 {
-    /// <summary>
-    /// Manager for custom user authorization token
-    /// </summary>
-    /// <remarks>
-    /// For token reauthorization to work properly the driver code would need to be re-factored to allow for Unauthorized exceptions to be retried. 
-    /// Also support for OAuth2 tokens or JWT would greatly help instead of this custom token being provided.
-    /// </remarks>
-    public sealed class AuthTokenManager : IDisposable
+	/// <summary>
+	/// Manager for custom user authorization token
+	/// </summary>
+	/// <remarks>
+	/// For token reauthorization to work properly the driver code would need to be re-factored to allow for Unauthorized exceptions to be retried. 
+	/// Also support for OAuth2 tokens or JWT would greatly help instead of this custom token being provided.
+	/// </remarks>
+	public sealed class AuthTokenManager : IDisposable
     {
         private ClientPolicy ClientPolicy { get; }
         private GrpcChannel Channel { get; set; }
@@ -84,20 +79,20 @@ namespace Aerospike.Client
                 {
                     cancellationSrc.Cancel();
                     Log.Error($"SetChannel: Wait for Completion Timed Out: {timeOut + 500}");
-                    System.Diagnostics.Debug.WriteLine($"SetChannel: Wait for Completion Timed Out: {timeOut + 500}");
+                    Debug.WriteLine($"SetChannel: Wait for Completion Timed Out: {timeOut + 500}");
                     throw new AerospikeException.Timeout(timeOut, false, refreshTokenTask.Exception);
                 }
 
                 if (refreshTokenTask.IsFaulted)
                 {
                     Log.Error($"SetChannel: Refresh Token Task Faulted Exception: '{refreshTokenTask.Exception}'");
-                    System.Diagnostics.Debug.WriteLine($"SetChannel: Refresh Token Task Faulted Exception: '{refreshTokenTask.Exception}'");
+                    Debug.WriteLine($"SetChannel: Refresh Token Task Faulted Exception: '{refreshTokenTask.Exception}'");
                     throw refreshTokenTask.Exception;
                 }
                 if (refreshTokenTask.IsCanceled)
                 {
                     Log.Error($"SetChannel: Refresh Token Task Canceled: Time Out: {timeOut}: Exception: '{refreshTokenTask.Exception}'");
-                    System.Diagnostics.Debug.WriteLine($"SetChannel: Refresh Token Task Canceled: Time Out: {timeOut}: Exception: '{refreshTokenTask.Exception}'");
+                    Debug.WriteLine($"SetChannel: Refresh Token Task Canceled: Time Out: {timeOut}: Exception: '{refreshTokenTask.Exception}'");
                     throw new OperationCanceledException("Initial Token Fetch was Canceled", refreshTokenTask.Exception);
                 }
             }
@@ -117,7 +112,7 @@ namespace Aerospike.Client
         /// </remarks>
         private void RefreshTokenEvent()
         {
-            //If the Token is not being updated and the token needs to be refreshed, than get a new token... 
+            //If the Token is not being updated and the token needs to be refreshed, then get a new token... 
             if (this.UpdatingToken.IsSet && this.AccessToken.ShouldRefreshToken)
             {
                 if (Log.DebugEnabled())
@@ -221,7 +216,7 @@ namespace Aerospike.Client
             catch (ArgumentException argEx) //thrown if timer interval is bad...
             {
                 Log.Error($"Refresh Token Error {AccessToken} Exception: '{argEx}'");
-                System.Diagnostics.Debug.WriteLine($"Refresh Token Error {AccessToken} '{argEx}'");
+                Debug.WriteLine($"Refresh Token Error {AccessToken} '{argEx}'");
 
                 this.RefreshTokenTimer.Interval = prevTimerInterval;
                 //Restart timer
@@ -235,7 +230,7 @@ namespace Aerospike.Client
             catch (Exception ex)
             {                
                 Log.Error($"Refresh Token Error {AccessToken} Exception: '{ex}'");
-                System.Diagnostics.Debug.WriteLine($"Refresh Token Error {AccessToken} '{DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff")}' '{ex}'");
+                Debug.WriteLine($"Refresh Token Error {AccessToken} '{DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff")}' '{ex}'");
 
                 throw;
             }
@@ -267,7 +262,9 @@ namespace Aerospike.Client
             try
             {
                 if (Log.DebugEnabled())
+                {
                     Log.Debug($"FetchToken: Enter: {currentToken}");
+                }
 
                 //This will not be the true Get latency since it may include scheduling costs
                 var trackLatency = Stopwatch.StartNew();
@@ -307,7 +304,7 @@ namespace Aerospike.Client
             catch (RpcException e)
             {
                 Log.Error($"FetchToken: Error: {currentToken}: '{DateTime.UtcNow}': Exception: '{e}'");
-                System.Diagnostics.Debug.WriteLine($"FetchToken: Error: {currentToken}: '{DateTime.UtcNow}': '{e}'");
+                Debug.WriteLine($"FetchToken: Error: {currentToken}: '{DateTime.UtcNow}': '{e}'");
                 
                 throw GRPCConversions.ToAerospikeException(e, (int) timeout, false);
             }            
@@ -338,7 +335,7 @@ namespace Aerospike.Client
                 if (ttl <= 0)
                 {
                     Log.Error($"ParseToken Error 'iat' > 'exp' token: '{strClaims}'");
-                    System.Diagnostics.Debug.WriteLine($"ParseToken 'iat' > 'exp' Error token: '{strClaims}'");
+                    Debug.WriteLine($"ParseToken 'iat' > 'exp' Error token: '{strClaims}'");
 
                     throw new AerospikeException("token 'iat' > 'exp'");
                 }
@@ -348,7 +345,7 @@ namespace Aerospike.Client
             else
             {
                 Log.Error($"ParseToken Error token: '{strClaims}'");
-                System.Diagnostics.Debug.WriteLine($"ParseToken Error token: '{strClaims}'");
+                Debug.WriteLine($"ParseToken Error token: '{strClaims}'");
                 
                 throw new AerospikeException("Unsupported access token format");
             }
@@ -433,10 +430,6 @@ namespace Aerospike.Client
     public sealed class AccessToken : IDisposable
     {
         /// <summary>
-        /// This factor is used when the <see cref="RefreshTime"/> calculation is less or equal to zero
-        /// </summary>
-        private const float refreshZeroFraction = 0.10f;
-        /// <summary>
         /// This factor is used when the <see cref="RefreshTime"/> calculation is greater or equal to <see cref="ttl"/>
         /// </summary>
         private const float refreshAfterFraction = 0.85f;
@@ -504,7 +497,7 @@ namespace Aerospike.Client
 
             if (Log.DebugEnabled())
             {
-                System.Diagnostics.Debug.WriteLine(this);
+                Debug.WriteLine(this);
             }
         }
 

@@ -283,7 +283,7 @@ namespace Aerospike.Client
 			get { return colType; }
 		}
 
-		public byte[] PackedCtx
+		internal byte[] PackedCtx
 		{
 			get { return packedCtx; }
 		}

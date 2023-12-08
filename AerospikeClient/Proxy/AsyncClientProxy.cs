@@ -18,22 +18,17 @@
 namespace Aerospike.Client
 {
 	/// <summary>
-	/// Asynchronous Aerospike client.
-	/// <para>
-	/// Your application uses this class to perform asynchronous database operations 
-	/// such as writing and reading records, and selecting sets of records. Write 
-	/// operations include specialized functionality such as append/prepend and arithmetic
-	/// addition.
-	/// </para>
-	/// <para>
-	/// This client is thread-safe. One client instance should be used per cluster.
-	/// Multiple threads should share this cluster instance.
-	/// </para>
-	/// <para>
-	/// Each record may have multiple bins, unless the Aerospike server nodes are
-	/// configured as "single-bin". In "multi-bin" mode, partial records may be
-	/// written or read by specifying the relevant subset of bins.
-	/// </para>
+	/// Aerospike proxy client based implementation of <see cref="AsyncClient"/>. The proxy client
+	/// communicates with a proxy server via GRPC and HTTP/2. The proxy server relays the database
+	/// commands to the Aerospike server. The proxy client does not have knowledge of Aerospike
+	/// server nodes. Only the proxy server can communicate directly with Aerospike server nodes.
+	///
+	/// GRPC is an async framework, but the code stubs provided some sync unary operations, which are
+	/// the basis for some of the database operations in <see cref="AerospikeClientProxy"/>. This is
+	/// the fully async implementation, for use with the async awaitable pattern.
+	/// 
+	/// Note that not all of the methods in the original <see cref="AerospikeClient"/> and <see cref="AsyncClient"/>
+	/// are applicable to the proxy client. All of the methods using a listener are marked as obsolete.
 	/// </summary>
 	public class AsyncClientProxy : AerospikeClientProxy, IAsyncClient
 	{

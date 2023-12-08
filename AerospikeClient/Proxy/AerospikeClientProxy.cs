@@ -26,23 +26,17 @@ using static Aerospike.Client.AerospikeException;
 namespace Aerospike.Client
 {
 	/// <summary>
-	/// Instantiate an AerospikeClient object to access an Aerospike
-	/// database cluster and perform database operations.
-	/// <para>
-	/// This client is thread-safe. One client instance should be used per cluster.
-	/// Multiple threads should share this cluster instance.
-	/// </para>
-	/// <para>
-	/// Your application uses this class API to perform database operations such as
-	/// writing and reading records, and selecting sets of records. Write operations
-	/// include specialized functionality such as append/prepend and arithmetic
-	/// addition.
-	/// </para>
-	/// <para>
-	/// Each record may have multiple bins, unless the Aerospike server nodes are
-	/// configured as "single-bin". In "multi-bin" mode, partial records may be
-	/// written or read by specifying the relevant subset of bins.
-	/// </para>
+	/// Aerospike proxy client based implementation of <see cref="AerospikeClient"/>. The proxy client
+	/// communicates with a proxy server via GRPC and HTTP/2. The proxy server relays the database
+    /// commands to the Aerospike server. The proxy client does not have knowledge of Aerospike
+    /// server nodes. Only the proxy server can communicate directly with Aerospike server nodes.
+    ///
+    /// GRPC is an async framework, but the code stubs provided some sync unary operations, which are
+	/// the basis for some of the database operations here. For a fully async proxy client see 
+	/// <see cref="AsyncClientProxy"/>.
+	/// 
+	/// Note that not all of the methods in the original <see cref="AerospikeClient"/> and <see cref="AsyncClient"/>
+	/// are applicable to the proxy client. All of the methods using a listener are marked as obsolete.
 	/// </summary>
 	public class AerospikeClientProxy : IDisposable, IAerospikeClient
 	{
@@ -120,7 +114,7 @@ namespace Aerospike.Client
 		//-------------------------------------------------------
 
 		/// <summary>
-		/// Initialize Aerospike client with suitable hosts to seed the cluster map.
+		/// Initialize Aerospike proxy client with suitable hosts to seed the cluster map.
 		/// The client policy is used to set defaults and size internal data structures.
 		/// For the first host connection that succeeds, the client will:
 		/// <list type="bullet">
@@ -156,11 +150,6 @@ namespace Aerospike.Client
 			this.batchUDFPolicyDefault = policy.batchUDFPolicyDefault;
 			this.infoPolicyDefault = policy.infoPolicyDefault;
 			this.operatePolicyReadDefault = new WritePolicy(this.readPolicyDefault);
-			 
-			Aerospike.Client.Log.SetCallback((l, msg)
-						=> System.Diagnostics.Debug.WriteLine($"ASDriver: {Task.CurrentId}: {l}: '{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")}': {msg}"));
-			Aerospike.Client.Log.SetLevel(Log.Level.DEBUG);
-
 
 			var connectionUri = hosts[0].tlsName is null && policy.tlsPolicy is null ? new UriBuilder("http", hosts[0].name, hosts[0].port).Uri :
 				new UriBuilder("https", hosts[0].name, hosts[0].port).Uri;
@@ -1421,11 +1410,6 @@ namespace Aerospike.Client
 		public RecordSet Query(QueryPolicy policy, Statement statement)
 		{
 			return QueryPartitions(policy, statement, PartitionFilter.All());
-		}
-
-		public RecordSet Query(QueryPolicy policy, Statement statement, CancellationToken cancellationToken = default)
-		{
-			return QueryPartitions(policy, statement, PartitionFilter.All(), cancellationToken);
 		}
 
 		/// <summary>

@@ -96,7 +96,9 @@ namespace Aerospike.Client
 				FailOnClusterChange = queryPolicy.failOnClusterChange,
 				ShortQuery = queryPolicy.shortQuery
 			};
-			if (queryPolicy.filterExp != null) queryPolicyKVS.Expression = ByteString.CopyFrom(queryPolicy.filterExp.Bytes);
+			if (queryPolicy.filterExp != null) {
+				queryPolicyKVS.Expression = ByteString.CopyFrom(queryPolicy.filterExp.Bytes);
+			}
 			return queryPolicyKVS;
 		}
 
@@ -127,7 +129,9 @@ namespace Aerospike.Client
 				ColType = ToGrpc(filter.ColType)
 			};
 
-			if (filter.PackedCtx != null) filterKVS.PackedCtx = ByteString.CopyFrom(filter.PackedCtx);
+			if (filter.PackedCtx != null) {
+				filterKVS.PackedCtx = ByteString.CopyFrom(filter.PackedCtx);
+			}
 
 			return filterKVS;
 		}
@@ -139,7 +143,10 @@ namespace Aerospike.Client
 				Type = ToGrpc(operation.type),
 				Value = ValueToByteString(operation.value)
 			};
-			if (operation.binName != null) { operationKVS.BinName = operation.binName; }
+			if (operation.binName != null) 
+			{ 
+				operationKVS.BinName = operation.binName; 
+			}
 
 			return operationKVS;
 		}
@@ -162,9 +169,18 @@ namespace Aerospike.Client
 				RecordsPerSecond = (uint)statement.RecordsPerSecond
 			};
 
-			if (statement.IndexName != null) statementKVS.IndexName = statement.IndexName;
-			if (statement.PackageName != null) statementKVS.PackageName = statement.PackageName;
-			if (statement.FunctionName != null) statementKVS.FunctionName = statement.FunctionName;
+			if (statement.IndexName != null)
+			{
+				statementKVS.IndexName = statement.IndexName;
+			}
+			if (statement.PackageName != null) 
+			{
+				statementKVS.PackageName = statement.PackageName;
+			}
+			if (statement.FunctionName != null) 
+			{
+				statementKVS.FunctionName = statement.FunctionName;
+			}
 
 
 			if (statement.BinNames != null)
@@ -203,7 +219,10 @@ namespace Aerospike.Client
 				Retry = ps.retry
 			};
 
-			if (ps.digest != null) { partitionStatusKVS.Digest = ByteString.CopyFrom(ps.digest); }
+			if (ps.digest != null) 
+			{ 
+				partitionStatusKVS.Digest = ByteString.CopyFrom(ps.digest); 
+			}
 
 			return partitionStatusKVS;
 		}
@@ -217,7 +236,10 @@ namespace Aerospike.Client
 				Retry = partitionFilter.Retry
 			};
 
-			if (partitionFilter.Digest != null && partitionFilter.Digest.Length > 0) partitionFilterKVS.Digest = ByteString.CopyFrom(partitionFilter.Digest);
+			if (partitionFilter.Digest != null && partitionFilter.Digest.Length > 0) 
+			{
+				partitionFilterKVS.Digest = ByteString.CopyFrom(partitionFilter.Digest);
+			}
 
 			if (partitionFilter.Partitions != null)
 			{
