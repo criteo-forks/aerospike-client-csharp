@@ -19,157 +19,169 @@ using System.Threading;
 
 namespace Aerospike.Client
 {
-	/// <summary>
-	/// Concurrent bounded LIFO stack with ability to pop from head or tail.
-	/// <para>
-	/// The standard library concurrent stack, ConcurrentStack, does not
-	/// allow pop from both head and tail.
-	/// </para>
-	/// </summary>
-	public sealed class Pool<T>
+	public sealed class Pool<T> where T : class
 	{
 		private readonly T[] items;
-		private int head;
-		private int tail;
 		private int size;
+		
 		internal readonly int minSize;
-		private volatile int total; // total items: inUse + inPool
-
-		/// <summary>
-		/// Construct stack pool.
-		/// </summary>
+		private int total;
+		
 		public Pool(int minSize, int maxSize)
 		{
 			this.minSize = minSize;
 			items = new T[maxSize];
+
+			size = 0;
 		}
 
-		/// <summary>
-		/// Insert item at head of stack.
-		/// </summary>
 		public bool Enqueue(T item)
 		{
-			Monitor.Enter(this);
+			if (!TryIncrementSize()) 
+				return false;
 
-			try
+			while (true)
 			{
-				if (size == items.Length)
+				for (var i = 0; i < items.Length; i++)
+				{
+					var observedValue = items[i];
+					if (observedValue != null)
+					{
+						continue;
+					}
+					if (Interlocked.CompareExchange(ref items[i], item, null) == null)
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		private bool TryIncrementSize()
+		{
+			var curSize = size;
+			do
+			{
+				if (curSize == items.Length) // observed full array
 				{
 					return false;
 				}
 
-				items[head] = item;
-
-				if (++head == items.Length)
+				var observedSize = Interlocked.CompareExchange(ref size, curSize + 1, curSize);
+				if (observedSize == curSize)
 				{
-					head = 0;
+					// successfully incremented, we'll be able to find a place in array
+					break;
 				}
-				size++;
-				return true;
-			}
-			finally
+
+				curSize = observedSize;
+			} while (true);
+
+			return true;
+		}
+
+		public bool TryDequeue(out T value)
+		{
+			if (!TryDecrementSize())
 			{
-				Monitor.Exit(this);
+				value = default;
+				return false;
+			}
+
+			while (true)
+			{
+				for (var i = 0; i < items.Length; i++)
+				{
+					var observedValue = items[i];
+					if (observedValue == null)
+					{
+						continue;
+					}
+
+					if (Interlocked.CompareExchange(ref items[i], null, observedValue) == observedValue)
+					{
+						value = observedValue;
+						return true;
+					}
+				}
 			}
 		}
 
-		/// <summary>
-		/// Insert item at tail of stack.
-		/// </summary>
+		private bool TryDecrementSize()
+		{
+			var curSize = size;
+			do
+			{
+				if (curSize == 0) // nothing in the pool
+				{
+					return false;
+				}
+				
+				var observedSize = Interlocked.CompareExchange(ref size, curSize - 1, curSize);
+				if (observedSize == curSize)
+				{
+					// successfully decremented, we will be able to dequeue the item
+					break;
+				}
+
+				curSize = observedSize;
+			} while (true);
+
+			return true;
+		}
+
 		public bool EnqueueLast(T item)
 		{
-			Monitor.Enter(this);
-
-			try
+			if (!TryIncrementSize())
+				return false;
+			
+			while (true)
 			{
-				if (size == items.Length)
+				for (var i = items.Length - 1; i >= 0; i--)
 				{
-					return false;
+					var observedValue = items[i];
+					if (observedValue != null)
+					{
+						continue;
+					}
+					if (Interlocked.CompareExchange(ref items[i], item, null) == null)
+					{
+						return true;
+					}
 				}
-
-				if (tail == 0)
-				{
-					tail = items.Length - 1;
-				}
-				else
-				{
-					tail--;
-				}
-				items[tail] = item;
-				size++;
-				return true;
-			}
-			finally
-			{
-				Monitor.Exit(this);
 			}
 		}
 
-		/// <summary>
-		/// Pop item from head of stack.
-		/// </summary>
-		public bool TryDequeue(out T item)
+		public bool TryDequeueLast(out T value)
 		{
-			Monitor.Enter(this);
-
-			try
+			if (!TryDecrementSize())
 			{
-				if (size == 0)
-				{
-					item = default(T);
-					return false;
-				}
-
-				if (head == 0)
-				{
-					head = items.Length - 1;
-				}
-				else
-				{
-					head--;
-				}
-				size--;
-
-				item = items[head];
-				items[head] = default(T);
-				return true;
+				value = default;
+				return false;
 			}
-			finally
+			
+			while (true)
 			{
-				Monitor.Exit(this);
+				for (var i = items.Length - 1; i >= 0; i--)
+				{
+					var observedValue = items[i];
+					if (observedValue == null)
+					{
+						continue;
+					}
+
+					if (Interlocked.CompareExchange(ref items[i], null, observedValue) == observedValue)
+					{
+						value = observedValue;
+						return true;
+					}
+				}
 			}
 		}
-
-		/// <summary>
-		/// Pop item from tail of stack.
-		/// </summary>
-		public bool TryDequeueLast(out T item)
-		{
-			Monitor.Enter(this);
-
-			try
-			{
-				if (size == 0)
-				{
-					item = default(T);
-					return false;
-				}
-				item = items[tail];
-				items[tail] = default(T);
-
-				if (++tail == items.Length)
-				{
-					tail = 0;
-				}
-				size--;
-				return true;
-			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
-		}
-
+		
+		
+		
+		
 		/// <summary>
 		/// Return item count.
 		/// </summary>
@@ -177,16 +189,7 @@ namespace Aerospike.Client
 		{
 			get
 			{
-				Monitor.Enter(this);
-
-				try
-				{
-					return size;
-				}
-				finally
-				{
-					Monitor.Exit(this);
-				}
+				return size;
 			}
 		}
 
@@ -230,4 +233,217 @@ namespace Aerospike.Client
 			get { return total; }
 		}
 	}
+	
+	
+	// /// <summary>
+	// /// Concurrent bounded LIFO stack with ability to pop from head or tail.
+	// /// <para>
+	// /// The standard library concurrent stack, ConcurrentStack, does not
+	// /// allow pop from both head and tail.
+	// /// </para>
+	// /// </summary>
+	// public sealed class Pool<T>
+	// {
+	// 	private readonly T[] items;
+	// 	private int head;
+	// 	private int tail;
+	// 	private int size;
+	// 	internal readonly int minSize;
+	// 	private volatile int total; // total items: inUse + inPool
+	//
+	// 	/// <summary>
+	// 	/// Construct stack pool.
+	// 	/// </summary>
+	// 	public Pool(int minSize, int maxSize)
+	// 	{
+	// 		this.minSize = minSize;
+	// 		items = new T[maxSize];
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Insert item at head of stack.
+	// 	/// </summary>
+	// 	public bool Enqueue(T item)
+	// 	{
+	// 		Monitor.Enter(this);
+	// 		
+	// 		try
+	// 		{
+	// 			if (size == items.Length)
+	// 			{
+	// 				return false;
+	// 			}
+	//
+	// 			items[head] = item;
+	//
+	// 			if (++head == items.Length)
+	// 			{
+	// 				head = 0;
+	// 			}
+	// 			size++;
+	// 			return true;
+	// 		}
+	// 		finally
+	// 		{
+	// 			Monitor.Exit(this);
+	// 		}
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Insert item at tail of stack.
+	// 	/// </summary>
+	// 	public bool EnqueueLast(T item)
+	// 	{
+	// 		Monitor.Enter(this);
+	//
+	// 		try
+	// 		{
+	// 			if (size == items.Length)
+	// 			{
+	// 				return false;
+	// 			}
+	//
+	// 			if (tail == 0)
+	// 			{
+	// 				tail = items.Length - 1;
+	// 			}
+	// 			else
+	// 			{
+	// 				tail--;
+	// 			}
+	// 			items[tail] = item;
+	// 			size++;
+	// 			return true;
+	// 		}
+	// 		finally
+	// 		{
+	// 			Monitor.Exit(this);
+	// 		}
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Pop item from head of stack.
+	// 	/// </summary>
+	// 	public bool TryDequeue(out T item)
+	// 	{
+	// 		Monitor.Enter(this);
+	//
+	// 		try
+	// 		{
+	// 			if (size == 0)
+	// 			{
+	// 				item = default(T);
+	// 				return false;
+	// 			}
+	//
+	// 			if (head == 0)
+	// 			{
+	// 				head = items.Length - 1;
+	// 			}
+	// 			else
+	// 			{
+	// 				head--;
+	// 			}
+	// 			size--;
+	//
+	// 			item = items[head];
+	// 			items[head] = default(T);
+	// 			return true;
+	// 		}
+	// 		finally
+	// 		{
+	// 			Monitor.Exit(this);
+	// 		}
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Pop item from tail of stack.
+	// 	/// </summary>
+	// 	public bool TryDequeueLast(out T item)
+	// 	{
+	// 		Monitor.Enter(this);
+	//
+	// 		try
+	// 		{
+	// 			if (size == 0)
+	// 			{
+	// 				item = default(T);
+	// 				return false;
+	// 			}
+	// 			item = items[tail];
+	// 			items[tail] = default(T);
+	//
+	// 			if (++tail == items.Length)
+	// 			{
+	// 				tail = 0;
+	// 			}
+	// 			size--;
+	// 			return true;
+	// 		}
+	// 		finally
+	// 		{
+	// 			Monitor.Exit(this);
+	// 		}
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Return item count.
+	// 	/// </summary>
+	// 	public int Count
+	// 	{
+	// 		get
+	// 		{
+	// 			Monitor.Enter(this);
+	//
+	// 			try
+	// 			{
+	// 				return size;
+	// 			}
+	// 			finally
+	// 			{
+	// 				Monitor.Exit(this);
+	// 			}
+	// 		}
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Return pool capacity.
+	// 	/// </summary>
+	// 	public int Capacity
+	// 	{
+	// 		get { return items.Length; }
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Return number of connections that might be closed.
+	// 	/// </summary>
+	// 	public int Excess()
+	// 	{
+	// 		return total - minSize;
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Increment total connections.
+	// 	/// </summary>
+	// 	public int IncrTotal()
+	// 	{
+	// 		return Interlocked.Increment(ref total);
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Decrement total connections.
+	// 	/// </summary>
+	// 	public int DecrTotal()
+	// 	{
+	// 		return Interlocked.Decrement(ref total);
+	// 	}
+	//
+	// 	/// <summary>
+	// 	/// Return total connections.
+	// 	/// </summary>
+	// 	public int Total
+	// 	{
+	// 		get { return total; }
+	// 	}
+	// }
 }
