@@ -12,7 +12,7 @@
 		<GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
 		<GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
 		<Authors>Aerospike</Authors>
-		<Version>7.0.1.1-criteo</Version>
+		<Version>7.0.1.2-criteo</Version>
 		<ApplicationIcon />
 		<OutputType>Library</OutputType>
 		<StartupObject />
