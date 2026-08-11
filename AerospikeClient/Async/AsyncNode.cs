@@ -122,25 +122,32 @@ namespace Aerospike.Client
 
 		private void CloseIdleAsyncConnections(int count)
 		{
-			while (count > 0)
-			{
-				AsyncConnection conn;
+			int poolCount = asyncConnQueue.Count;
+			AsyncConnection[] keep = new AsyncConnection[poolCount];
+			int keepCount = 0;
 
-				if (!asyncConnQueue.TryDequeueLast(out conn))
+			while (count > 0 && poolCount-- > 0)
+			{
+				if (!asyncConnQueue.TryDequeue(out AsyncConnection conn))
 				{
 					break;
 				}
 
 				if (cluster.IsConnCurrentTrim(conn.LastUsed))
 				{
-					if (!asyncConnQueue.EnqueueLast(conn))
-					{
-						CloseAsyncConn(conn);
-					}
-					break;
+					keep[keepCount++] = conn;
+					continue;
 				}
 				CloseAsyncConn(conn);
 				count--;
+			}
+
+			for (int i = keepCount - 1; i >= 0; i--)
+			{
+				if (!asyncConnQueue.Enqueue(keep[i]))
+				{
+					CloseAsyncConn(keep[i]);
+				}
 			}
 		}
 
@@ -173,9 +180,8 @@ namespace Aerospike.Client
 
 		internal void IncrAsyncConnTotal()
 		{
-			if (asyncConnQueue.IncrTotal() > asyncConnQueue.Capacity)
+			if (!asyncConnQueue.TryIncrTotal())
 			{
-				asyncConnQueue.DecrTotal();
 				throw new AerospikeException.Connection(ResultCode.NO_MORE_CONNECTIONS,
 					"Async max connections " + cluster.asyncMaxConnsPerNode + " would be exceeded.");
 			}

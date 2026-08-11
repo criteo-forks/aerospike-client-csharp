@@ -690,6 +690,11 @@ namespace Aerospike.Client
 					return;
 				}
 
+				if (conn == null)
+				{
+					break;
+				}
+
 				if (!pool.Enqueue(conn))
 				{
 					CloseConnection(conn);
@@ -701,7 +706,10 @@ namespace Aerospike.Client
 
 		private Connection CreateConnection(Pool<Connection> pool)
 		{
-			pool.IncrTotal();
+			if (!pool.TryIncrTotal())
+			{
+				return null;
+			}
 
 			Connection conn;
 
@@ -805,7 +813,7 @@ namespace Aerospike.Client
 					}
 					CloseConnection(conn);
 				}
-				else if (pool.IncrTotal() <= pool.Capacity)
+				else if (pool.TryIncrTotal())
 				{
 					// Socket not found and queue has available slot.
 					// Create new connection.
@@ -872,8 +880,6 @@ namespace Aerospike.Client
 				else
 				{
 					// Socket not found and queue is full.  Try another queue.
-					pool.DecrTotal();
-
 					if (backward)
 					{
 						if (queueIndex > 0)
@@ -941,11 +947,7 @@ namespace Aerospike.Client
 		/// <param name="conn">socket connection</param>
 		public void PutConnection(Connection conn)
 		{
-			if (active)
-			{
-				conn.pool.Enqueue(conn);
-			}
-			else
+			if (!(active && conn.pool.Enqueue(conn)))
 			{
 				CloseConnection(conn);
 			}
@@ -989,25 +991,32 @@ namespace Aerospike.Client
 
 		private void CloseIdleConnections(Pool<Connection> pool, int count)
 		{
-			while (count > 0)
-			{
-				Connection conn;
+			int poolCount = pool.Count;
+			Connection[] keep = new Connection[poolCount];
+			int keepCount = 0;
 
-				if (!pool.TryDequeueLast(out conn))
+			while (count > 0 && poolCount-- > 0)
+			{
+				if (!pool.TryDequeue(out Connection conn))
 				{
 					break;
 				}
 
 				if (cluster.IsConnCurrentTrim(conn.LastUsed))
 				{
-					if (!pool.EnqueueLast(conn))
-					{
-						CloseConnection(conn);
-					}
-					break;
+					keep[keepCount++] = conn;
+					continue;
 				}
 				CloseConnection(conn);
 				count--;
+			}
+
+			for (int i = keepCount - 1; i >= 0; i--)
+			{
+				if (!pool.Enqueue(keep[i]))
+				{
+					CloseConnection(keep[i]);
+				}
 			}
 		}
 

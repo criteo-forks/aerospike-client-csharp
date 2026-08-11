@@ -994,7 +994,7 @@ namespace Aerospike.Client
 			// Do not let queue get out of control.
 			if (Interlocked.Increment(ref recoverCount) < 10000)
 			{
-				recoverQueue.EnqueueLast(cs);
+				recoverQueue.Enqueue(cs);
 			}
 			else
 			{
@@ -1005,7 +1005,7 @@ namespace Aerospike.Client
 
 		private void ProcessRecoverQueue()
 		{
-			ConnectionRecover last = recoverQueue.PeekLast();
+			ConnectionRecover last = recoverQueue.PeekFirst();
 
 			if (last == default)
 			{
@@ -1017,7 +1017,7 @@ namespace Aerospike.Client
 			byte[] buf = ThreadLocalData.GetBuffer();
 			ConnectionRecover cs;
 
-			while (recoverQueue.TryDequeueLast(out cs) && cs != default)
+			while (recoverQueue.TryDequeue(out cs) && cs != default)
 			{
 				if (cs.Drain(buf))
 				{
@@ -1025,7 +1025,7 @@ namespace Aerospike.Client
 				}
 				else
 				{
-					recoverQueue.EnqueueLast(cs);
+					recoverQueue.Enqueue(cs);
 				}
 
 				if (cs == last)

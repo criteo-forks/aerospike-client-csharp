@@ -118,9 +118,8 @@ namespace Aerospike.Client
 		/// Maximum socket idle in seconds.  Socket connection pools will discard sockets
 		/// that have been idle longer than the maximum.
 		/// <para>
-		/// Connection pools are now implemented by a LIFO stack.  Connections at the tail of the
-		/// stack will always be the least used.  These connections are checked for maxSocketIdle
-		/// once every 30 tend iterations (usually 30 seconds).
+		/// Connection pools reuse connections in LIFO order within internal shards. The maintenance
+		/// thread scans available connections for maxSocketIdle once every 30 tend iterations.
 		/// </para>
 		/// <para>
 		/// If server's proto-fd-idle-ms is greater than zero, then maxSocketIdle should be

@@ -1,5 +1,5 @@
 /* 
- * Copyright 2012-2024 Aerospike, Inc.
+ * Copyright 2012-2026 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements.
@@ -14,201 +14,253 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+using System.Numerics;
+
 namespace Aerospike.Client
 {
 	/// <summary>
-	/// Concurrent bounded LIFO stack with ability to pop from head or tail.
-	/// <para>
-	/// The standard library concurrent stack, ConcurrentStack, does not
-	/// allow pop from both head and tail.
-	/// </para>
+	/// A bounded LIFO pool that spreads concurrent access across several small shards.
 	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// The pool creates a power-of-two shard count, up to twice the processor count.
+	/// Small pools use one shard because extra shards add no useful concurrency.
+	/// The constructor divides the configured capacity across fixed arrays.
+	/// Therefore, the sum of all shard capacities is always the configured capacity.
+	/// </para>
+	/// <para>
+	/// A thread selects its first shard from <see cref="Environment.CurrentManagedThreadId"/>.
+	/// It uses a mask because the shard count is a power of two.
+	/// If that shard cannot serve the operation, the thread checks each remaining shard.
+	/// A volatile count read skips shards that are clearly empty or full.
+	/// The method validates that count after it takes the shard lock.
+	/// It never holds more than one shard lock at a time.
+	/// A scan can return false if concurrent work moves the available slot between shards.
+	/// </para>
+	/// <para>
+	/// Each shard stores its items as a small array-backed LIFO stack.
+	/// The pool keeps LIFO order inside each shard, but it does not define a global order.
+	/// Tail operations rotate across shards and use the oldest item in the selected shard.
+	/// Connection maintenance scans available items, so it does not depend on a global tail.
+	/// </para>
+	/// <para>
+	/// The fixed arrays enforce the item limit without a shared counter on every checkout and return.
+	/// <see cref="TryIncrTotal"/> uses compare-and-exchange to reserve a connection slot before creation.
+	/// That reservation path keeps the number of live connections at or below <see cref="Capacity"/>.
+	/// </para>
+	/// <para>
+	/// <see cref="Count"/> reads each shard separately.
+	/// It returns a useful snapshot, but concurrent operations can change the pool during that read.
+	/// </para>
+	/// <para>
+	/// This design favors small, independent critical sections over one complex lock-free data structure.
+	/// It removes the pool-wide contention point without adding allocations to the hot path.
+	/// </para>
+	/// </remarks>
 	public sealed class Pool<T>
 	{
-		private readonly T[] items;
-		private int head;
-		private int tail;
-		private int size;
+		private readonly Shard[] shards;
+		private readonly int shardMask;
+		private readonly int capacity;
+		private int tailIter;
 		internal readonly int minSize;
-		private volatile int total; // total items: inUse + inPool
+		private int total; // total items: inUse + inPool
 
 		/// <summary>
-		/// Construct stack pool.
+		/// Construct the pool.
 		/// </summary>
 		public Pool(int minSize, int maxSize)
 		{
 			this.minSize = minSize;
-			items = new T[maxSize];
+			capacity = maxSize;
+			int maxShards = Math.Min(Math.Max(1, maxSize), Math.Max(1, Environment.ProcessorCount * 2));
+			int shardCount = maxSize <= 4 ? 1 : 1 << BitOperations.Log2((uint)maxShards);
+			shards = new Shard[shardCount];
+			shardMask = shardCount - 1;
+			int shardCapacity = maxSize / shardCount;
+			int remainder = maxSize - (shardCapacity * shardCount);
+
+			for (int i = 0; i < shardCount; i++)
+			{
+				shards[i] = new Shard(shardCapacity + (i < remainder ? 1 : 0));
+			}
 		}
 
 		/// <summary>
-		/// Insert item at head of stack.
+		/// Insert item at the head of a shard.
 		/// </summary>
 		public bool Enqueue(T item)
 		{
-			Monitor.Enter(this);
+			int initialIndex = GetShardIndex();
 
-			try
+			for (int offset = 0; offset < shards.Length; offset++)
 			{
-				if (size == items.Length)
+				Shard shard = shards[(initialIndex + offset) & shardMask];
+
+				if (Volatile.Read(ref shard.count) >= shard.items.Length)
 				{
-					return false;
+					continue;
 				}
 
-				items[head] = item;
-
-				if (++head == items.Length)
+				lock (shard)
 				{
-					head = 0;
+					if (shard.count < shard.items.Length)
+					{
+						shard.items[shard.count++] = item;
+						return true;
+					}
 				}
-				size++;
-				return true;
 			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
+			return false;
 		}
 
 		/// <summary>
-		/// Insert item at tail of stack.
+		/// Insert item at the tail of a shard.
 		/// </summary>
 		public bool EnqueueLast(T item)
 		{
-			Monitor.Enter(this);
+			int initialIndex = GetShardIndex();
 
-			try
+			for (int offset = 0; offset < shards.Length; offset++)
 			{
-				if (size == items.Length)
+				Shard shard = shards[(initialIndex + offset) & shardMask];
+
+				if (Volatile.Read(ref shard.count) >= shard.items.Length)
 				{
-					return false;
+					continue;
 				}
 
-				if (tail == 0)
+				lock (shard)
 				{
-					tail = items.Length - 1;
+					if (shard.count < shard.items.Length)
+					{
+						Array.Copy(shard.items, 0, shard.items, 1, shard.count);
+						shard.items[0] = item;
+						shard.count++;
+						return true;
+					}
 				}
-				else
-				{
-					tail--;
-				}
-				items[tail] = item;
-				size++;
-				return true;
 			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
+			return false;
 		}
 
 		/// <summary>
-		/// Pop item from head of stack.
+		/// Pop item from the head of a shard.
 		/// </summary>
 		public bool TryDequeue(out T item)
 		{
-			Monitor.Enter(this);
+			int initialIndex = GetShardIndex();
 
-			try
+			for (int offset = 0; offset < shards.Length; offset++)
 			{
-				if (size == 0)
+				Shard shard = shards[(initialIndex + offset) & shardMask];
+
+				if (Volatile.Read(ref shard.count) <= 0)
 				{
-					item = default(T);
-					return false;
+					continue;
 				}
 
-				if (head == 0)
+				lock (shard)
 				{
-					head = items.Length - 1;
+					if (shard.count > 0)
+					{
+						int index = --shard.count;
+						item = shard.items[index];
+						shard.items[index] = default(T);
+						return true;
+					}
 				}
-				else
-				{
-					head--;
-				}
-				size--;
+			}
 
-				item = items[head];
-				items[head] = default(T);
-				return true;
-			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
+			item = default(T);
+			return false;
 		}
 
 		/// <summary>
-		/// Peek at item from head of stack.
+		/// Peek at an item from the head of a shard.
 		/// </summary>
 		public T PeekFirst()
 		{
-			Monitor.Enter(this);
+			int initialIndex = GetShardIndex();
 
-			try
+			for (int offset = 0; offset < shards.Length; offset++)
 			{
-				if (size == 0)
+				Shard shard = shards[(initialIndex + offset) & shardMask];
+
+				if (Volatile.Read(ref shard.count) <= 0)
 				{
-					return default;
+					continue;
 				}
 
-				return items[head == 0 ? items.Length - 1 : head - 1];
+				lock (shard)
+				{
+					if (shard.count > 0)
+					{
+						return shard.items[shard.count - 1];
+					}
+				}
 			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
+			return default;
 		}
 
 		/// <summary>
-		/// Pop item from tail of stack.
+		/// Pop item from the tail of a shard.
 		/// </summary>
 		public bool TryDequeueLast(out T item)
 		{
-			Monitor.Enter(this);
+			int initialIndex = GetTailIndex();
 
-			try
+			for (int offset = 0; offset < shards.Length; offset++)
 			{
-				if (size == 0)
-				{
-					item = default(T);
-					return false;
-				}
-				item = items[tail];
-				items[tail] = default(T);
+				Shard shard = shards[(initialIndex + offset) & shardMask];
 
-				if (++tail == items.Length)
+				if (Volatile.Read(ref shard.count) <= 0)
 				{
-					tail = 0;
+					continue;
 				}
-				size--;
-				return true;
+
+				lock (shard)
+				{
+					if (shard.count > 0)
+					{
+						item = shard.items[0];
+						int count = --shard.count;
+						Array.Copy(shard.items, 1, shard.items, 0, count);
+						shard.items[count] = default(T);
+						return true;
+					}
+				}
 			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
+
+			item = default(T);
+			return false;
 		}
 
 		/// <summary>
-		/// Peek at item from tail of stack.
+		/// Peek at an item from the tail of a shard.
 		/// </summary>
 		public T PeekLast()
 		{
-			Monitor.Enter(this);
+			int initialIndex = (Volatile.Read(ref tailIter) + 1) & shardMask;
 
-			try
+			for (int offset = 0; offset < shards.Length; offset++)
 			{
-				if (size == 0)
+				Shard shard = shards[(initialIndex + offset) & shardMask];
+
+				if (Volatile.Read(ref shard.count) <= 0)
 				{
-					return default;
+					continue;
 				}
 
-				return items[tail];
+				lock (shard)
+				{
+					if (shard.count > 0)
+					{
+						return shard.items[0];
+					}
+				}
 			}
-			finally
-			{
-				Monitor.Exit(this);
-			}
+			return default;
 		}
 
 		/// <summary>
@@ -218,16 +270,13 @@ namespace Aerospike.Client
 		{
 			get
 			{
-				Monitor.Enter(this);
+				int count = 0;
 
-				try
+				foreach (Shard shard in shards)
 				{
-					return size;
+					count += Volatile.Read(ref shard.count);
 				}
-				finally
-				{
-					Monitor.Exit(this);
-				}
+				return count;
 			}
 		}
 
@@ -236,7 +285,28 @@ namespace Aerospike.Client
 		/// </summary>
 		public int Capacity
 		{
-			get { return items.Length; }
+			get { return capacity; }
+		}
+
+		private int GetShardIndex()
+		{
+			return Environment.CurrentManagedThreadId & shardMask;
+		}
+
+		private int GetTailIndex()
+		{
+			return Interlocked.Increment(ref tailIter) & shardMask;
+		}
+
+		private sealed class Shard
+		{
+			internal readonly T[] items;
+			internal int count;
+
+			internal Shard(int capacity)
+			{
+				items = new T[capacity];
+			}
 		}
 
 		/// <summary>
@@ -244,7 +314,27 @@ namespace Aerospike.Client
 		/// </summary>
 		public int Excess()
 		{
-			return total - minSize;
+			return Volatile.Read(ref total) - minSize;
+		}
+
+		/// <summary>
+		/// Increment total connections unless the pool is at capacity.
+		/// </summary>
+		public bool TryIncrTotal()
+		{
+			int count = Volatile.Read(ref total);
+
+			while (count < capacity)
+			{
+				int observed = Interlocked.CompareExchange(ref total, count + 1, count);
+
+				if (observed == count)
+				{
+					return true;
+				}
+				count = observed;
+			}
+			return false;
 		}
 
 		/// <summary>
@@ -268,7 +358,7 @@ namespace Aerospike.Client
 		/// </summary>
 		public int Total
 		{
-			get { return total; }
+			get { return Volatile.Read(ref total); }
 		}
 	}
 }
