@@ -75,7 +75,9 @@
     <EmbeddedResource Include="LuaResources\stream_ops.lua" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.8" />
+    <!-- Keep this dependency on major version 8 for .NET 8 consumers.
+         Later major versions require later Microsoft.Extensions assemblies. -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.2" />
     <PackageReference Include="NeoLua" Version="1.3.14" />
     <PackageReference Include="NetEscapades.Configuration.Yaml" Version="3.1.0" />
   </ItemGroup>
